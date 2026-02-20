@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DS Team Kanban Board</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #ee4d2d, #ff7337);
+      color: white;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    }
+    header .logo { display: flex; align-items: center; gap: 12px; }
+    header .logo svg { width: 30px; height: 30px; }
+    header h1 { font-size: 1.3rem; font-weight: 700; letter-spacing: .5px; }
+    header .subtitle { font-size: .78rem; opacity: .85; margin-top: 1px; }
+
+    /* ── Tab Navigation ── */
+    .tab-nav {
+      background: #fff;
+      border-bottom: 1px solid #e4e4e4;
+      padding: 0 28px;
+      display: flex;
+      gap: 0;
+    }
+    .tab-btn {
+      padding: 12px 22px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: .88rem;
+      font-weight: 600;
+      color: #888;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -1px;
+      transition: color .2s, border-color .2s;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .tab-btn:hover { color: #ee4d2d; }
+    .tab-btn.active { color: #ee4d2d; border-bottom-color: #ee4d2d; }
+    .tab-btn .tab-icon { font-size: 1rem; }
+
+    /* ── Shared Filter Bar ── */
+    .filter-bar {
+      background: #fff;
+      border-bottom: 2px solid #e4e4e4;
+      padding: 10px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .filter-label {
+      font-size: .75rem;
+      font-weight: 700;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      min-width: 46px;
+    }
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 13px 4px 5px;
+      border-radius: 999px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all .18s;
+      user-select: none;
+      font-size: .8rem;
+      font-weight: 600;
+      background: #f5f5f5;
+      color: #555;
+    }
+    .chip.all-chip { padding: 4px 13px; }
+    .chip:hover { border-color: var(--c, #bbb); color: var(--c, #555); }
+    .chip.active-chip {
+      border-color: var(--c, #ee4d2d);
+      background: color-mix(in srgb, var(--c, #ee4d2d) 13%, white);
+      color: var(--c, #ee4d2d);
+    }
+    .chip.active-chip.all-chip { background: var(--c, #ee4d2d); color: #fff; border-color: var(--c, #ee4d2d); }
+    .chip-avatar {
+      width: 22px; height: 22px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .65rem; font-weight: 700; color: #fff;
+    }
+    .chip-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin-left: 3px; }
+
+    /* status chips only shown in list view */
+    .status-filter-row { display: none; }
+
+    /* ── Stats bar ── */
+    .stats-bar {
+      display: flex;
+      gap: 18px;
+      padding: 8px 28px;
+      background: #fafafa;
+      border-bottom: 1px solid #e4e4e4;
+      font-size: .77rem;
+      color: #777;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .stat { display: flex; align-items: center; gap: 5px; }
+    .stat b { color: #333; font-size: .88rem; }
+    .stat .sdot { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* ── Board View ── */
+    .board {
+      display: flex;
+      gap: 16px;
+      padding: 24px 28px;
+      overflow-x: auto;
+      min-height: calc(100vh - 200px);
+      align-items: flex-start;
+    }
+    .column {
+      background: #ebecf0;
+      border-radius: 12px;
+      min-width: 270px;
+      max-width: 270px;
+      flex-shrink: 0;
+    }
+    .col-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px 10px;
+    }
+    .col-title {
+      display: flex; align-items: center; gap: 8px;
+      font-weight: 700; font-size: .88rem; color: #333;
+    }
+    .col-count {
+      background: #c4c9d4; color: #555; border-radius: 999px;
+      padding: 1px 8px; font-size: .72rem; font-weight: 700;
+    }
+    .col-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+    .add-card-btn {
+      background: none; border: none; cursor: pointer; color: #777;
+      font-size: 1.2rem; line-height: 1; padding: 2px 6px;
+      border-radius: 6px; transition: background .15s, color .15s;
+    }
+    .add-card-btn:hover { background: #d1d4da; color: #333; }
+    .cards-list {
+      padding: 0 8px 8px;
+      display: flex; flex-direction: column; gap: 8px; min-height: 40px;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: #fff; border-radius: 9px; padding: 12px 13px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.09);
+      cursor: grab; transition: box-shadow .2s, transform .15s;
+      position: relative; border-left: 4px solid var(--accent, #ccc);
+      user-select: none;
+    }
+    .card:active { cursor: grabbing; }
+    .card.dragging { opacity: .45; transform: rotate(2deg); box-shadow: 0 8px 20px rgba(0,0,0,.2); }
+    .card-priority {
+      font-size: .63rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .5px; color: var(--accent, #aaa); margin-bottom: 5px;
+    }
+    .card-title { font-size: .88rem; font-weight: 600; color: #222; line-height: 1.4; margin-bottom: 6px; }
+    .card-desc { font-size: .75rem; color: #888; line-height: 1.4; margin-bottom: 7px; }
+    .card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+    .card-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+    .tag {
+      background: #f0f2f5; border-radius: 4px; padding: 2px 6px;
+      font-size: .66rem; font-weight: 600; color: #666;
+    }
+    .assignee-avatar {
+      width: 24px; height: 24px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .63rem; font-weight: 700; color: #fff;
+      border: 2px solid #fff; box-shadow: 0 0 0 1.5px rgba(0,0,0,.1); flex-shrink: 0;
+    }
+    .card-due { font-size: .67rem; color: #aaa; display: flex; align-items: center; gap: 3px; }
+    .card-due.overdue { color: #e74c3c; }
+    .card.filtered { display: none; }
+    .placeholder {
+      border: 2px dashed #c4c9d4; border-radius: 9px;
+      height: 60px; background: rgba(255,255,255,.4);
+    }
+    .card-delete {
+      position: absolute; top: 8px; right: 8px;
+      background: none; border: none; font-size: .78rem; cursor: pointer;
+      color: #ccc; opacity: 0; transition: opacity .15s, color .15s;
+    }
+    .card:hover .card-delete { opacity: 1; }
+    .card-delete:hover { color: #e74c3c; }
+
+    /* ── List View ── */
+    #view-list { padding: 24px 28px; }
+
+    .list-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .list-toolbar h2 { font-size: 1rem; font-weight: 700; color: #333; }
+    .toolbar-right { display: flex; align-items: center; gap: 10px; }
+    .groupby-wrap { display: flex; align-items: center; gap: 8px; }
+    .groupby-label { font-size: .74rem; font-weight: 700; color: #aaa; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; }
+    .groupby-opts { display: flex; background: #f0f2f5; border-radius: 8px; padding: 3px; gap: 2px; }
+    .groupby-opt {
+      padding: 5px 13px; border-radius: 6px; border: none; background: none;
+      cursor: pointer; font-size: .78rem; font-weight: 600; color: #777; transition: all .15s;
+    }
+    .groupby-opt:hover { color: #444; background: rgba(255,255,255,.6); }
+    .groupby-opt.active { background: #fff; color: #ee4d2d; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+    .add-task-list-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 16px; border-radius: 8px; border: none;
+      background: #ee4d2d; color: #fff; cursor: pointer;
+      font-size: .82rem; font-weight: 700; transition: background .2s;
+    }
+    .add-task-list-btn:hover { background: #d63d1e; }
+
+    /* Generic section group header (PIC / Priority / Due Date) */
+    .section-group { margin-bottom: 28px; }
+    .section-group-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px; border-radius: 10px; margin-bottom: 10px;
+      background: color-mix(in srgb, var(--gh-color, #ccc) 9%, white);
+      border-left: 4px solid var(--gh-color, #ccc);
+    }
+    .section-group-icon {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .82rem; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .section-group-title { font-size: .95rem; font-weight: 700; color: #222; }
+    .section-group-sub   { font-size: .74rem; color: #aaa; margin-top: 1px; }
+    .section-group-count {
+      margin-left: auto; font-size: .74rem; font-weight: 700;
+      background: rgba(0,0,0,.07); color: #555;
+      padding: 2px 11px; border-radius: 999px; white-space: nowrap;
+    }
+
+    /* List table */
+    .list-table {
+      width: 100%; border-collapse: collapse;
+      background: #fff; border-radius: 10px;
+      overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,.07);
+    }
+    .list-table th {
+      background: #f7f8fa; padding: 10px 14px; text-align: left;
+      font-size: .75rem; font-weight: 700; color: #888;
+      text-transform: uppercase; letter-spacing: .4px;
+      cursor: pointer; user-select: none; white-space: nowrap;
+      border-bottom: 1px solid #eee;
+    }
+    .list-table th:hover { background: #eff0f2; color: #555; }
+    .list-table th.sorted { color: #ee4d2d; }
+    .sort-arrow { margin-left: 4px; opacity: .5; }
+    .list-table td {
+      padding: 11px 14px; border-bottom: 1px solid #f2f2f2;
+      font-size: .84rem; color: #333; vertical-align: middle;
+    }
+    .list-table tr:last-child td { border-bottom: none; }
+    .list-table tr:hover td { background: #fafbff; }
+
+    .task-title-cell { font-weight: 600; color: #222; }
+    .task-desc-cell { font-size: .73rem; color: #aaa; margin-top: 2px; }
+
+    /* Status badge */
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 999px; font-size: .72rem;
+      font-weight: 700; white-space: nowrap;
+    }
+    .status-badge .sbdot { width: 7px; height: 7px; border-radius: 50%; }
+    .status-backlog    { background: #f2f2f2; color: #777; }
+    .status-todo       { background: #e8f4fd; color: #2980b9; }
+    .status-inprogress { background: #fef9e7; color: #d68910; }
+    .status-review     { background: #f5eef8; color: #8e44ad; }
+    .status-done       { background: #eafaf1; color: #1e8449; }
+
+    /* Priority badge */
+    .pri-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: .7rem; font-weight: 700;
+    }
+    .pri-high   { background: #fde8e8; color: #c0392b; }
+    .pri-medium { background: #fef5e7; color: #ca8a04; }
+    .pri-low    { background: #e8f4fd; color: #2980b9; }
+
+    /* PIC cell */
+    .pic-cell { display: flex; align-items: center; gap: 8px; }
+    .pic-name { font-weight: 600; font-size: .82rem; color: #333; }
+    .pic-email { font-size: .7rem; color: #aaa; }
+
+    /* row delete */
+    .row-delete {
+      background: none; border: none; cursor: pointer;
+      color: #ddd; font-size: .85rem; padding: 3px 6px;
+      border-radius: 5px; transition: all .15s;
+    }
+    .row-delete:hover { background: #fde8e8; color: #e74c3c; }
+
+    .empty-state {
+      text-align: center; padding: 48px 20px; color: #aaa;
+    }
+    .empty-state .emoji { font-size: 2.2rem; margin-bottom: 10px; }
+    .empty-state p { font-size: .9rem; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.45); z-index: 100;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #fff; border-radius: 14px; padding: 26px;
+      width: 420px; max-width: 95vw;
+      box-shadow: 0 12px 40px rgba(0,0,0,.2); position: relative;
+    }
+    .modal h2 { font-size: 1.05rem; font-weight: 700; color: #222; margin-bottom: 18px; }
+    .modal label { display: block; font-size: .79rem; font-weight: 600; color: #555; margin-bottom: 4px; margin-top: 12px; }
+    .modal input, .modal textarea, .modal select {
+      width: 100%; padding: 8px 11px;
+      border: 1.5px solid #ddd; border-radius: 8px;
+      font-size: .86rem; color: #333; font-family: inherit;
+      transition: border-color .2s; outline: none;
+    }
+    .modal input:focus, .modal textarea:focus, .modal select:focus { border-color: #ee4d2d; }
+    .modal textarea { resize: vertical; min-height: 65px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+    .btn { padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: .86rem; font-weight: 600; transition: background .2s; }
+    .btn-primary { background: #ee4d2d; color: #fff; }
+    .btn-primary:hover { background: #d63d1e; }
+    .btn-ghost { background: #f0f2f5; color: #555; }
+    .btn-ghost:hover { background: #e0e2e6; }
+    .modal-close {
+      position: absolute; top: 13px; right: 14px;
+      background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #bbb;
+    }
+    .modal-close:hover { color: #333; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { height: 6px; width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #c4c9d4; border-radius: 99px; }
+
+    /* ── Header Actions ── */
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+
+    .save-indicator {
+      font-size: .72rem; font-weight: 700; padding: 4px 12px;
+      border-radius: 999px; background: rgba(46,204,113,.5); color: #fff;
+      opacity: 0; transition: opacity .4s; white-space: nowrap;
+      pointer-events: none;
+    }
+    .save-indicator.show { opacity: 1; }
+
+    .header-btn {
+      background: rgba(255,255,255,.2); border: none; color: #fff;
+      padding: 6px 14px; border-radius: 8px; cursor: pointer;
+      font-size: .8rem; font-weight: 700;
+      display: inline-flex; align-items: center; gap: 5px;
+      transition: background .2s; white-space: nowrap;
+      text-decoration: none;
+    }
+    .header-btn:hover { background: rgba(255,255,255,.35); }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 40 40" fill="none">
+      <rect width="40" height="40" rx="10" fill="rgba(255,255,255,.2)"/>
+      <rect x="7" y="10" width="8" height="22" rx="2" fill="white"/>
+      <rect x="17" y="16" width="8" height="16" rx="2" fill="white" opacity=".8"/>
+      <rect x="27" y="12" width="6" height="20" rx="2" fill="white" opacity=".6"/>
+    </svg>
+    <div>
+      <h1>Data Science Kanban</h1>
+      <div class="subtitle">Shopee · DS Team Board</div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <span class="save-indicator" id="saveIndicator">✓ Saved</span>
+    <button class="header-btn" onclick="exportTasks()" title="Export tasks as JSON backup">📤 Export</button>
+    <label class="header-btn" title="Import tasks from JSON backup" style="cursor:pointer">
+      📥 Import
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importTasks(this)">
+    </label>
+  </div>
+</header>
+
+<!-- ── Tab Navigation ── -->
+<div class="tab-nav">
+  <button class="tab-btn active" id="tab-board" onclick="switchTab('board')">
+    <span class="tab-icon">⊞</span> Board View
+  </button>
+  <button class="tab-btn" id="tab-list" onclick="switchTab('list')">
+    <span class="tab-icon">☰</span> List View
+  </button>
+</div>
+
+<!-- ── Shared Filter Bar ── -->
+<div class="filter-bar">
+  <!-- Row 1: PIC / Member filter -->
+  <div class="filter-row">
+    <span class="filter-label">PIC</span>
+    <div class="chip all-chip active-chip" style="--c:#ee4d2d" id="mc-all" onclick="filterMember('all')">
+      👥 All Members
+    </div>
+    <div class="chip" style="--c:#5b6abf" id="mc-albers" onclick="filterMember('albers')">
+      <div class="chip-avatar" style="background:#5b6abf">AL</div> Albers
+    </div>
+    <div class="chip" style="--c:#27ae60" id="mc-felix" onclick="filterMember('felix')">
+      <div class="chip-avatar" style="background:#27ae60">FX</div> Felix
+    </div>
+    <div class="chip" style="--c:#e67e22" id="mc-daniel" onclick="filterMember('daniel')">
+      <div class="chip-avatar" style="background:#e67e22">DL</div> Daniel
+    </div>
+    <div class="chip" style="--c:#1abc9c" id="mc-wildan" onclick="filterMember('wildan')">
+      <div class="chip-avatar" style="background:#1abc9c">WB</div> Wildan
+    </div>
+    <div class="chip" style="--c:#9b59b6" id="mc-pudja" onclick="filterMember('pudja')">
+      <div class="chip-avatar" style="background:#9b59b6">PG</div> Pudja
+    </div>
+    <div class="chip" style="--c:#e91e8c" id="mc-happy" onclick="filterMember('happy')">
+      <div class="chip-avatar" style="background:#e91e8c">HT</div> Happy
+    </div>
+    <div class="chip" style="--c:#34495e" id="mc-rio" onclick="filterMember('rio')">
+      <div class="chip-avatar" style="background:#34495e">RA</div> Rio
+    </div>
+  </div>
+
+  <!-- Row 2: Priority filter — visible in Board View only -->
+  <div class="filter-row" id="priorityFilterRow">
+    <span class="filter-label">Priority</span>
+    <div class="chip all-chip active-chip" style="--c:#ee4d2d" id="pc-all" onclick="filterPriority('all')">
+      All Priority
+    </div>
+    <div class="chip all-chip" style="--c:#e74c3c" id="pc-high" onclick="filterPriority('high')">
+      <div class="chip-dot" style="background:#e74c3c"></div> High
+    </div>
+    <div class="chip all-chip" style="--c:#f39c12" id="pc-medium" onclick="filterPriority('medium')">
+      <div class="chip-dot" style="background:#f39c12"></div> Medium
+    </div>
+    <div class="chip all-chip" style="--c:#3498db" id="pc-low" onclick="filterPriority('low')">
+      <div class="chip-dot" style="background:#3498db"></div> Low
+    </div>
+  </div>
+
+  <!-- Row 3: Status filter — visible in List View only -->
+  <div class="filter-row status-filter-row" id="statusFilterRow">
+    <span class="filter-label">Status</span>
+    <div class="chip all-chip active-chip" style="--c:#ee4d2d" id="sc-all" onclick="filterStatus('all')">
+      All Status
+    </div>
+    <div class="chip all-chip" style="--c:#95a5a6" id="sc-backlog" onclick="filterStatus('backlog')">
+      <div class="chip-dot" style="background:#95a5a6"></div> Backlog
+    </div>
+    <div class="chip all-chip" style="--c:#3498db" id="sc-todo" onclick="filterStatus('todo')">
+      <div class="chip-dot" style="background:#3498db"></div> To Do
+    </div>
+    <div class="chip all-chip" style="--c:#f39c12" id="sc-inprogress" onclick="filterStatus('inprogress')">
+      <div class="chip-dot" style="background:#f39c12"></div> In Progress
+    </div>
+    <div class="chip all-chip" style="--c:#9b59b6" id="sc-review" onclick="filterStatus('review')">
+      <div class="chip-dot" style="background:#9b59b6"></div> Review
+    </div>
+    <div class="chip all-chip" style="--c:#2ecc71" id="sc-done" onclick="filterStatus('done')">
+      <div class="chip-dot" style="background:#2ecc71"></div> Done
+    </div>
+  </div>
+</div>
+
+<!-- ── Stats Bar ── -->
+<div class="stats-bar" id="statsBar"></div>
+
+<!-- ── Board View ── -->
+<div id="view-board">
+  <div class="board" id="board"></div>
+</div>
+
+<!-- ── List View ── -->
+<div id="view-list" style="display:none">
+  <div id="listContent"></div>
+</div>
+
+<!-- ── Add / Edit Task Modal ── -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2>Add New Task</h2>
+
+    <label>Task Title *</label>
+    <input type="text" id="inputTitle" placeholder="e.g. Build churn prediction model" />
+
+    <label>Description</label>
+    <textarea id="inputDesc" placeholder="Optional details…"></textarea>
+
+    <label>Assignee (PIC)</label>
+    <select id="inputAssignee">
+      <option value="">— Unassigned —</option>
+      <option value="albers">Albers (albers.dwiyanda@shopee.com)</option>
+      <option value="felix">Felix (felix.jonathan@shopee.com)</option>
+      <option value="daniel">Daniel (josephus.daniel@shopee.com)</option>
+      <option value="wildan">Wildan (wildan.budhi@shopee.com)</option>
+      <option value="pudja">Pudja (pudja.gemilang@shopee.com)</option>
+      <option value="happy">Happy (happy.trianna@spxexpress.com)</option>
+      <option value="rio">Rio (rio.audino@shopee.com)</option>
+    </select>
+
+    <label>Status / Column</label>
+    <select id="inputCol">
+      <option value="backlog">Backlog</option>
+      <option value="todo">To Do</option>
+      <option value="inprogress">In Progress</option>
+      <option value="review">Review</option>
+      <option value="done">Done</option>
+    </select>
+
+    <label>Priority</label>
+    <select id="inputPriority">
+      <option value="medium">Medium</option>
+      <option value="high">High</option>
+      <option value="low">Low</option>
+    </select>
+
+    <label>Tag / Label</label>
+    <input type="text" id="inputTag" placeholder="e.g. ML, EDA, Pipeline (comma separated)" />
+
+    <label>Due Date</label>
+    <input type="date" id="inputDue" />
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCard()">Add Task</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────
+const MEMBERS = {
+  albers: { name: 'Albers', email: 'albers.dwiyanda@shopee.com',  color: '#5b6abf', initials: 'AL' },
+  felix:  { name: 'Felix',  email: 'felix.jonathan@shopee.com',   color: '#27ae60', initials: 'FX' },
+  daniel: { name: 'Daniel', email: 'josephus.daniel@shopee.com',  color: '#e67e22', initials: 'DL' },
+  wildan: { name: 'Wildan', email: 'wildan.budhi@shopee.com',     color: '#1abc9c', initials: 'WB' },
+  pudja:  { name: 'Pudja',  email: 'pudja.gemilang@shopee.com',   color: '#9b59b6', initials: 'PG' },
+  happy:  { name: 'Happy',  email: 'happy.trianna@spxexpress.com',color: '#e91e8c', initials: 'HT' },
+  rio:    { name: 'Rio',    email: 'rio.audino@shopee.com',       color: '#34495e', initials: 'RA' },
+};
+
+const PRIORITY_COLOR = { high: '#e74c3c', medium: '#f39c12', low: '#3498db' };
+
+const COLUMNS = [
+  { id: 'backlog',    label: 'Backlog',     dot: '#95a5a6' },
+  { id: 'todo',       label: 'To Do',       dot: '#3498db' },
+  { id: 'inprogress', label: 'In Progress', dot: '#f39c12' },
+  { id: 'review',     label: 'Review',      dot: '#9b59b6' },
+  { id: 'done',       label: 'Done',        dot: '#2ecc71' },
+];
+
+const COL_BADGE_CLASS = {
+  backlog: 'status-backlog', todo: 'status-todo',
+  inprogress: 'status-inprogress', review: 'status-review', done: 'status-done',
+};
+
+const SEED_TASKS = [
+  { id: 't1', col: 'todo',       title: 'Set up data pipeline for user behaviour', desc: 'Ingest raw clickstream data from S3 into Spark',      assignee: 'albers', priority: 'high',   tags: ['Pipeline', 'Spark'], due: '2026-02-25' },
+  { id: 't2', col: 'inprogress', title: 'EDA on customer segmentation dataset',    desc: 'Explore and profile the Q4 2025 cohort data',          assignee: 'felix',  priority: 'medium', tags: ['EDA'],               due: '2026-02-22' },
+  { id: 't3', col: 'inprogress', title: 'Build churn prediction model (v2)',        desc: 'Improve F1 from 0.78 → 0.85 using XGBoost tuning',     assignee: 'daniel', priority: 'high',   tags: ['ML', 'XGBoost'],     due: '2026-02-28' },
+  { id: 't4', col: 'review',     title: 'A/B test analysis – homepage redesign',   desc: 'Validate statistical significance, write report',        assignee: 'albers', priority: 'medium', tags: ['A/B Test', 'Stats'], due: '2026-02-21' },
+  { id: 't5', col: 'todo',       title: 'Feature store documentation',             desc: '',                                                       assignee: 'felix',  priority: 'low',    tags: ['Docs'],              due: '' },
+  { id: 't6', col: 'done',       title: 'Deploy recommendation API to staging',    desc: 'Docker + Kubernetes, latency < 120 ms ✓',               assignee: 'daniel', priority: 'high',   tags: ['Deploy', 'API'],     due: '2026-02-15' },
+  { id: 't7', col: 'backlog',    title: 'Research LLM-based search ranking',       desc: 'Feasibility spike: compare BERT vs ColBERT',             assignee: 'felix',  priority: 'medium', tags: ['LLM', 'NLP'],        due: '' },
+  { id: 't8', col: 'backlog',    title: 'Fraud detection model refresh',           desc: '',                                                       assignee: 'albers', priority: 'high',   tags: ['ML', 'Fraud'],       due: '2026-03-05' },
+  { id: 't9', col: 'done',       title: 'Monthly DS metrics dashboard',            desc: 'Built in Superset, linked to BigQuery',                  assignee: 'albers', priority: 'low',    tags: ['Dashboard'],         due: '2026-02-10' },
+];
+
+let tasks = [];
+let nextId      = 10;
+let activeTab   = 'board';
+let filterMemberVal   = 'all';
+let filterStatusVal   = 'all';
+let filterPriorityVal = 'all';
+let listGroupBy = 'pic';   // 'none' | 'pic' | 'priority' | 'due'
+let sortCol    = 'title';
+let sortAsc    = true;
+let pendingColId = null;
+
+// ── Drag state ─────────────────────────────────────────────────────────────
+let dragCard = null;
+
+// ── localStorage Persistence ───────────────────────────────────────────────
+function saveToLocal() {
+  try {
+    localStorage.setItem('kanban_tasks', JSON.stringify(tasks));
+    localStorage.setItem('kanban_nextId', String(nextId));
+  } catch(e) {
+    console.error('Save failed:', e);
+  }
+  // Flash the save indicator
+  const ind = document.getElementById('saveIndicator');
+  if (ind) {
+    ind.classList.add('show');
+    clearTimeout(ind._timer);
+    ind._timer = setTimeout(() => ind.classList.remove('show'), 2000);
+  }
+}
+
+function loadFromLocal() {
+  try {
+    const saved = localStorage.getItem('kanban_tasks');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        tasks = parsed;
+        const savedId = localStorage.getItem('kanban_nextId');
+        nextId = savedId ? parseInt(savedId) : Math.max(...tasks.map(t => parseInt((t.id||'0').replace(/\D/g,'')) || 0)) + 1;
+        return true;
+      }
+    }
+  } catch(e) {
+    console.error('Load failed:', e);
+  }
+  return false;
+}
+
+// ── Export / Import ─────────────────────────────────────────────────────────
+function exportTasks() {
+  const data = JSON.stringify({ tasks, exportedAt: new Date().toISOString() }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'kanban-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importTasks(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data     = JSON.parse(e.target.result);
+      const imported = Array.isArray(data) ? data : (data.tasks || []);
+      if (!imported.length) { alert('No tasks found in this file.'); return; }
+      if (!confirm(`Import ${imported.length} tasks?\n\nThis will replace your current board. Make sure to export a backup first if needed.`)) return;
+      tasks  = imported;
+      nextId = Math.max(...tasks.map(t => parseInt((t.id||'0').replace(/\D/g,'')) || 0)) + 1;
+      saveToLocal();
+      render();
+    } catch(err) {
+      alert('Could not read file.\nMake sure it is a valid Kanban JSON export.');
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('tab-board').classList.toggle('active', tab === 'board');
+  document.getElementById('tab-list').classList.toggle('active', tab === 'list');
+  document.getElementById('view-board').style.display = tab === 'board' ? '' : 'none';
+  document.getElementById('view-list').style.display  = tab === 'list'  ? '' : 'none';
+  document.getElementById('priorityFilterRow').style.display = tab === 'board' ? 'flex' : 'none';
+  document.getElementById('statusFilterRow').style.display   = tab === 'list'  ? 'flex' : 'none';
+  render();
+}
+
+// ── Member filter ──────────────────────────────────────────────────────────
+function filterMember(val) {
+  filterMemberVal = val;
+  ['all','albers','felix','daniel','wildan','pudja','happy','rio'].forEach(k => {
+    document.getElementById('mc-' + k).classList.toggle('active-chip', k === val);
+  });
+  render();
+}
+
+// ── Priority filter (board view) ───────────────────────────────────────────
+function filterPriority(val) {
+  filterPriorityVal = val;
+  ['all','high','medium','low'].forEach(k => {
+    document.getElementById('pc-' + k).classList.toggle('active-chip', k === val);
+  });
+  render();
+}
+
+// ── Status filter (list view) ──────────────────────────────────────────────
+function filterStatus(val) {
+  filterStatusVal = val;
+  ['all','backlog','todo','inprogress','review','done'].forEach(k => {
+    document.getElementById('sc-' + k).classList.toggle('active-chip', k === val);
+  });
+  render();
+}
+
+// ── Utility: today ─────────────────────────────────────────────────────────
+function today() { const d = new Date(); d.setHours(0,0,0,0); return d; }
+
+function dueLabel(due, col) {
+  if (!due) return '';
+  const d = new Date(due + 'T00:00:00');
+  const overdue = d < today() && col !== 'done';
+  const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return { label, overdue };
+}
+
+// ── Filtered task list ─────────────────────────────────────────────────────
+function filteredTasks() {
+  return tasks.filter(t => {
+    const matchMember = filterMemberVal === 'all' || t.assignee === filterMemberVal;
+    const matchStatus = filterStatusVal === 'all' || t.col === filterStatusVal;
+    return matchMember && matchStatus;
+  });
+}
+
+// ── Main render ────────────────────────────────────────────────────────────
+function render() {
+  updateStats();
+  if (activeTab === 'board') renderBoard();
+  else renderList();
+}
+
+// ── Board render ───────────────────────────────────────────────────────────
+function renderBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  COLUMNS.forEach(col => {
+    const colTasks = tasks.filter(t => t.col === col.id);
+    const visibleCount = colTasks.filter(t =>
+      (filterMemberVal   === 'all' || t.assignee === filterMemberVal) &&
+      (filterPriorityVal === 'all' || t.priority === filterPriorityVal)
+    ).length;
+
+    const colEl = document.createElement('div');
+    colEl.className = 'column';
+    colEl.innerHTML = `
+      <div class="col-header">
+        <div class="col-title">
+          <div class="col-dot" style="background:${col.dot}"></div>
+          ${col.label}
+          <span class="col-count">${visibleCount}</span>
+        </div>
+        <button class="add-card-btn" title="Add task" onclick="openModal('${col.id}')">＋</button>
+      </div>
+      <div class="cards-list" id="list-${col.id}"></div>
+    `;
+    board.appendChild(colEl);
+
+    const list = colEl.querySelector(`#list-${col.id}`);
+    setupDropZone(list, col.id);
+
+    colTasks.forEach(task => list.appendChild(buildCard(task)));
+  });
+}
+
+function buildCard(task) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.dataset.id = task.id;
+  card.draggable = true;
+  card.style.setProperty('--accent', PRIORITY_COLOR[task.priority] || '#ccc');
+
+  if ((filterMemberVal   !== 'all' && task.assignee !== filterMemberVal) ||
+      (filterPriorityVal !== 'all' && task.priority !== filterPriorityVal)) {
+    card.classList.add('filtered');
+  }
+
+  const m   = task.assignee ? MEMBERS[task.assignee] : null;
+  const due = dueLabel(task.due, task.col);
+  const dueHtml = due
+    ? `<span class="card-due ${due.overdue ? 'overdue' : ''}">📅 ${due.label}${due.overdue ? ' ⚠' : ''}</span>`
+    : '';
+  const tagsHtml    = (task.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
+  const avatarHtml  = m
+    ? `<div class="assignee-avatar" style="background:${m.color}" title="${m.name} · ${m.email}">${m.initials}</div>`
+    : '';
+
+  card.innerHTML = `
+    <button class="card-delete" onclick="deleteTask('${task.id}')">✕</button>
+    <div class="card-priority">${task.priority} priority</div>
+    <div class="card-title">${task.title}</div>
+    ${task.desc ? `<div class="card-desc">${task.desc}</div>` : ''}
+    <div class="card-footer">
+      <div class="card-tags">${tagsHtml}</div>
+      <div style="display:flex;align-items:center;gap:6px">${dueHtml}${avatarHtml}</div>
+    </div>
+  `;
+
+  card.addEventListener('dragstart', e => {
+    dragCard = task.id;
+    setTimeout(() => card.classList.add('dragging'), 0);
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  card.addEventListener('dragend', () => card.classList.remove('dragging'));
+  return card;
+}
+
+function setupDropZone(list, colId) {
+  list.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!list.querySelector('.placeholder')) {
+      const ph = document.createElement('div');
+      ph.className = 'placeholder';
+      list.appendChild(ph);
+    }
+  });
+  list.addEventListener('dragleave', e => {
+    if (!list.contains(e.relatedTarget)) {
+      list.querySelector('.placeholder')?.remove();
+    }
+  });
+  list.addEventListener('drop', e => {
+    e.preventDefault();
+    list.querySelector('.placeholder')?.remove();
+    if (dragCard) {
+      const task = tasks.find(t => t.id === dragCard);
+      if (task) task.col = colId;
+      dragCard = null;
+      render();
+      saveToLocal();
+    }
+  });
+}
+
+// ── List render ────────────────────────────────────────────────────────────
+function renderList() {
+  const container = document.getElementById('listContent');
+  const vis = filteredTasks();
+
+  vis.sort((a, b) => {
+    let va = a[sortCol] || '', vb = b[sortCol] || '';
+    if (sortCol === 'due') { va = va || 'zzz'; vb = vb || 'zzz'; }
+    return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+
+  const isEmpty = vis.length === 0;
+  let bodyHtml = '';
+
+  if (!isEmpty) {
+    if (listGroupBy === 'none') {
+      bodyHtml = buildTable(vis, true);
+
+    } else if (listGroupBy === 'pic') {
+      const memberOrder = ['albers', 'felix', 'daniel', 'wildan', 'pudja', 'happy', 'rio'];
+      bodyHtml = memberOrder.map(mid => {
+        const m = MEMBERS[mid];
+        const mTasks = vis.filter(t => t.assignee === mid);
+        if (!mTasks.length) return '';
+        return buildSectionGroup({ icon: m.initials, iconBg: m.color, title: m.name, sub: m.email, count: mTasks.length, color: m.color, tasks: mTasks, showPIC: false });
+      }).join('');
+      const u = vis.filter(t => !t.assignee);
+      if (u.length) bodyHtml += buildSectionGroup({ icon: '?', iconBg: '#bbb', title: 'Unassigned', sub: '', count: u.length, color: '#bbb', tasks: u, showPIC: false });
+
+    } else if (listGroupBy === 'priority') {
+      const PGROUPS = [
+        { key: 'high',   label: 'High Priority',   sub: 'Urgent — needs immediate attention', icon: '↑', color: '#e74c3c' },
+        { key: 'medium', label: 'Medium Priority',  sub: 'Important but not urgent',           icon: '→', color: '#f39c12' },
+        { key: 'low',    label: 'Low Priority',     sub: 'Can be done when time allows',       icon: '↓', color: '#3498db' },
+      ];
+      bodyHtml = PGROUPS.map(g => {
+        const gTasks = vis.filter(t => t.priority === g.key);
+        if (!gTasks.length) return '';
+        return buildSectionGroup({ icon: g.icon, iconBg: g.color, title: g.label, sub: g.sub, count: gTasks.length, color: g.color, tasks: gTasks, showPIC: true });
+      }).join('');
+
+    } else if (listGroupBy === 'due') {
+      const DUE_BUCKETS = [
+        { key: 'overdue',  label: 'Overdue',      sub: 'Past due date — action needed', icon: '⚠',  color: '#e74c3c' },
+        { key: 'today',    label: 'Due Today',    sub: '',                              icon: '🔥', color: '#e67e22' },
+        { key: 'thisweek', label: 'This Week',    sub: 'Due in the next 7 days',        icon: '📅', color: '#f39c12' },
+        { key: 'nextweek', label: 'Next Week',    sub: 'Due in 8–14 days',              icon: '📆', color: '#3498db' },
+        { key: 'later',    label: 'Later',        sub: 'Due in 14+ days',               icon: '🗓', color: '#9b59b6' },
+        { key: 'nodue',    label: 'No Due Date',  sub: '',                              icon: '—',  color: '#aaa'    },
+      ];
+      bodyHtml = DUE_BUCKETS.map(b => {
+        const bTasks = vis.filter(t => getDueBucket(t) === b.key);
+        if (!bTasks.length) return '';
+        return buildSectionGroup({ icon: b.icon, iconBg: b.color, title: b.label, sub: b.sub, count: bTasks.length, color: b.color, tasks: bTasks, showPIC: true });
+      }).join('');
+    }
+  }
+
+  container.innerHTML = `
+    <div class="list-toolbar">
+      <h2>All Tasks &nbsp;<span style="font-weight:400;color:#aaa;font-size:.88rem">${vis.length} result${vis.length !== 1 ? 's' : ''}</span></h2>
+      <div class="toolbar-right">
+        <div class="groupby-wrap">
+          <span class="groupby-label">Group by</span>
+          <div class="groupby-opts">
+            <button class="groupby-opt ${listGroupBy==='none'     ? 'active':''}" onclick="setGroupBy('none')">None</button>
+            <button class="groupby-opt ${listGroupBy==='pic'      ? 'active':''}" onclick="setGroupBy('pic')">PIC</button>
+            <button class="groupby-opt ${listGroupBy==='priority' ? 'active':''}" onclick="setGroupBy('priority')">Priority</button>
+            <button class="groupby-opt ${listGroupBy==='due'      ? 'active':''}" onclick="setGroupBy('due')">Due Date</button>
+          </div>
+        </div>
+        <button class="add-task-list-btn" onclick="openModal('backlog')">＋ Add Task</button>
+      </div>
+    </div>
+    ${isEmpty
+      ? `<div class="empty-state"><div class="emoji">🔍</div><p>No tasks match your filters.</p></div>`
+      : bodyHtml
+    }
+  `;
+}
+
+// ── Due date bucketing ──────────────────────────────────────────────────────
+function getDueBucket(task) {
+  if (!task.due) return 'nodue';
+  const d    = new Date(task.due + 'T00:00:00');
+  const t    = today();
+  if (d < t && task.col !== 'done') return 'overdue';
+  const diff = Math.round((d - t) / (1000 * 60 * 60 * 24));
+  if (diff === 0)  return 'today';
+  if (diff <= 7)   return 'thisweek';
+  if (diff <= 14)  return 'nextweek';
+  return 'later';
+}
+
+// ── Build a collapsible section group ─────────────────────────────────────
+function buildSectionGroup({ icon, iconBg, title, sub, count, color, tasks, showPIC }) {
+  return `
+    <div class="section-group">
+      <div class="section-group-header" style="--gh-color:${color}">
+        <div class="section-group-icon" style="background:${iconBg}">${icon}</div>
+        <div>
+          <div class="section-group-title">${title}</div>
+          ${sub ? `<div class="section-group-sub">${sub}</div>` : ''}
+        </div>
+        <div class="section-group-count">${count} task${count !== 1 ? 's' : ''}</div>
+      </div>
+      ${buildTable(tasks, showPIC)}
+    </div>
+  `;
+}
+
+function buildTable(rows, showPIC) {
+  const arrow = (col) => sortCol === col ? (sortAsc ? ' ▲' : ' ▼') : '<span class="sort-arrow">⇅</span>';
+  const th = (col, label, w = '') =>
+    `<th class="${sortCol === col ? 'sorted' : ''}" onclick="setSort('${col}')" ${w ? `style="width:${w}"` : ''}>
+      ${label}${arrow(col)}
+    </th>`;
+
+  const rows_html = rows.map(task => {
+    const m      = task.assignee ? MEMBERS[task.assignee] : null;
+    const due    = dueLabel(task.due, task.col);
+    const dueHtml = due
+      ? `<span style="font-size:.75rem;color:${due.overdue ? '#e74c3c' : '#aaa'}">📅 ${due.label}${due.overdue ? ' ⚠' : ''}</span>`
+      : '<span style="color:#ddd;font-size:.75rem">—</span>';
+    const tagsHtml = (task.tags || []).map(t => `<span class="tag">${t}</span>`).join('');
+    const col    = COLUMNS.find(c => c.id === task.col);
+    const picHtml = m
+      ? `<div class="pic-cell">
+           <div class="assignee-avatar" style="background:${m.color};width:28px;height:28px">${m.initials}</div>
+           <div><div class="pic-name">${m.name}</div><div class="pic-email">${m.email}</div></div>
+         </div>`
+      : '<span style="color:#ccc;font-size:.8rem">—</span>';
+
+    return `<tr>
+      <td>
+        <div class="task-title-cell">${task.title}</div>
+        ${task.desc ? `<div class="task-desc-cell">${task.desc}</div>` : ''}
+      </td>
+      <td>
+        <span class="status-badge ${COL_BADGE_CLASS[task.col] || ''}">
+          <span class="sbdot" style="background:${col?.dot || '#ccc'}"></span>
+          ${col?.label || task.col}
+        </span>
+      </td>
+      <td><span class="pri-badge pri-${task.priority}">${task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}</span></td>
+      ${showPIC ? `<td>${picHtml}</td>` : ''}
+      <td><div style="display:flex;gap:4px;flex-wrap:wrap">${tagsHtml || '<span style="color:#ddd;font-size:.75rem">—</span>'}</div></td>
+      <td>${dueHtml}</td>
+      <td><button class="row-delete" onclick="deleteTask('${task.id}')" title="Delete">✕</button></td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <table class="list-table">
+      <thead>
+        <tr>
+          ${th('title', 'Task')}
+          ${th('col', 'Status', '120px')}
+          ${th('priority', 'Priority', '100px')}
+          ${showPIC ? th('assignee', 'PIC', '190px') : ''}
+          <th style="width:130px">Tags</th>
+          ${th('due', 'Due Date', '110px')}
+          <th style="width:44px"></th>
+        </tr>
+      </thead>
+      <tbody>${rows_html}</tbody>
+    </table>
+  `;
+}
+
+function setGroupBy(val) {
+  listGroupBy = val;
+  renderList();
+}
+
+function setSort(col) {
+  if (sortCol === col) sortAsc = !sortAsc;
+  else { sortCol = col; sortAsc = true; }
+  renderList();
+}
+
+// ── Stats ──────────────────────────────────────────────────────────────────
+function updateStats() {
+  const bar   = document.getElementById('statsBar');
+  const total = tasks.length;
+  const done  = tasks.filter(t => t.col === 'done').length;
+  const inPrg = tasks.filter(t => t.col === 'inprogress').length;
+  const toDo  = tasks.filter(t => t.col === 'todo').length;
+  const bklg  = tasks.filter(t => t.col === 'backlog').length;
+  const od    = tasks.filter(t => t.due && new Date(t.due + 'T00:00:00') < today() && t.col !== 'done').length;
+
+  bar.innerHTML = `
+    <div class="stat"><div class="sdot" style="background:#3498db"></div> Total: <b>${total}</b></div>
+    <div class="stat"><div class="sdot" style="background:#95a5a6"></div> Backlog: <b>${bklg}</b></div>
+    <div class="stat"><div class="sdot" style="background:#3498db"></div> To Do: <b>${toDo}</b></div>
+    <div class="stat"><div class="sdot" style="background:#f39c12"></div> In Progress: <b>${inPrg}</b></div>
+    <div class="stat"><div class="sdot" style="background:#2ecc71"></div> Done: <b>${done}</b></div>
+    ${od ? `<div class="stat"><div class="sdot" style="background:#e74c3c"></div> Overdue: <b style="color:#e74c3c">${od}</b></div>` : ''}
+  `;
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────
+function openModal(defaultCol) {
+  pendingColId = defaultCol || 'backlog';
+  document.getElementById('inputTitle').value    = '';
+  document.getElementById('inputDesc').value     = '';
+  document.getElementById('inputAssignee').value = '';
+  document.getElementById('inputCol').value      = pendingColId;
+  document.getElementById('inputPriority').value = 'medium';
+  document.getElementById('inputTag').value      = '';
+  document.getElementById('inputDue').value      = '';
+  document.getElementById('modalOverlay').classList.add('open');
+  document.getElementById('inputTitle').focus();
+}
+
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+
+function saveCard() {
+  const title = document.getElementById('inputTitle').value.trim();
+  if (!title) { document.getElementById('inputTitle').focus(); return; }
+
+  const tagRaw = document.getElementById('inputTag').value.trim();
+  tasks.push({
+    id: 't' + (nextId++),
+    col:      document.getElementById('inputCol').value,
+    title,
+    desc:     document.getElementById('inputDesc').value.trim(),
+    assignee: document.getElementById('inputAssignee').value,
+    priority: document.getElementById('inputPriority').value,
+    tags:     tagRaw ? tagRaw.split(',').map(t => t.trim()).filter(Boolean) : [],
+    due:      document.getElementById('inputDue').value,
+  });
+  closeModal();
+  render();
+  saveToLocal();
+}
+
+// ── Delete ─────────────────────────────────────────────────────────────────
+function deleteTask(id) {
+  if (!confirm('Delete this task?')) return;
+  tasks = tasks.filter(t => t.id !== id);
+  render();
+  saveToLocal();
+}
+
+// ── Event wiring ───────────────────────────────────────────────────────────
+document.getElementById('modalOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ── Init ───────────────────────────────────────────────────────────────────
+function initApp() {
+  const loaded = loadFromLocal();
+  if (!loaded) {
+    // First time: load seed data and save it
+    tasks = SEED_TASKS;
+    saveToLocal();
+  }
+  render();
+}
+initApp();
+</script>
+</body>
+</html>
