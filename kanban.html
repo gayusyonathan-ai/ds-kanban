@@ -412,7 +412,7 @@
     <button class="header-btn" onclick="exportTasks()" title="Export tasks as JSON backup">📤 Export</button>
     <label class="header-btn" title="Import tasks from JSON backup" style="cursor:pointer">
       📥 Import
-      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importTasks(this)">
+      <input type="file" id="importFile" accept=".csv" style="display:none" onchange="importTasks(this)">
     </label>
   </div>
 </header>
@@ -653,16 +653,44 @@ function loadFromLocal() {
   return false;
 }
 
-// ── Export / Import ─────────────────────────────────────────────────────────
+// ── Export / Import (CSV) ───────────────────────────────────────────────────
 function exportTasks() {
-  const data = JSON.stringify({ tasks, exportedAt: new Date().toISOString() }, null, 2);
-  const blob = new Blob([data], { type: 'application/json' });
+  const headers = ['id', 'col', 'title', 'desc', 'assignee', 'priority', 'tags', 'due'];
+  const escape  = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+
+  const rows = tasks.map(t =>
+    [t.id, t.col, t.title, t.desc || '', t.assignee || '',
+     t.priority, (t.tags || []).join(';'), t.due || '']
+    .map(escape).join(',')
+  );
+
+  const csv  = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
-  a.download = 'kanban-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  a.download = 'kanban-' + new Date().toISOString().slice(0, 10) + '.csv';
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// Parse a single CSV row, handling quoted fields and commas inside quotes
+function parseCSVRow(row) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < row.length; i++) {
+    const ch = row[i];
+    if (ch === '"') {
+      if (inQ && row[i + 1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (ch === ',' && !inQ) {
+      result.push(cur); cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  result.push(cur);
+  return result;
 }
 
 function importTasks(input) {
@@ -671,16 +699,28 @@ function importTasks(input) {
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
-      const data     = JSON.parse(e.target.result);
-      const imported = Array.isArray(data) ? data : (data.tasks || []);
-      if (!imported.length) { alert('No tasks found in this file.'); return; }
-      if (!confirm(`Import ${imported.length} tasks?\n\nThis will replace your current board. Make sure to export a backup first if needed.`)) return;
+      const lines    = e.target.result.split('\n').filter(l => l.trim());
+      if (lines.length < 2) { alert('No tasks found in this file.'); return; }
+
+      const headers  = parseCSVRow(lines[0]);
+      const imported = lines.slice(1).map(line => {
+        const vals = parseCSVRow(line);
+        const obj  = {};
+        headers.forEach((h, i) => obj[h] = vals[i] ?? '');
+        // Tags were stored as semicolon-separated
+        obj.tags = obj.tags ? obj.tags.split(';').map(s => s.trim()).filter(Boolean) : [];
+        return obj;
+      }).filter(t => t.id && t.title);
+
+      if (!imported.length) { alert('No valid tasks found. Make sure it is a Kanban CSV export.'); return; }
+      if (!confirm(`Import ${imported.length} tasks?\n\nThis will replace your current board.`)) return;
+
       tasks  = imported;
-      nextId = Math.max(...tasks.map(t => parseInt((t.id||'0').replace(/\D/g,'')) || 0)) + 1;
+      nextId = Math.max(...tasks.map(t => parseInt((t.id || '0').replace(/\D/g, '')) || 0)) + 1;
       saveToLocal();
       render();
     } catch(err) {
-      alert('Could not read file.\nMake sure it is a valid Kanban JSON export.');
+      alert('Could not read file.\nMake sure it is a valid Kanban CSV export.');
     }
     input.value = '';
   };
